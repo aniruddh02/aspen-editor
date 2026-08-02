@@ -12,5 +12,9 @@ pub mod quality;
 pub mod settings;
 pub mod tags;
 
-pub use pipeline::{run_deduplicate, DeduplicateResult, ProgressEvent};
+pub use pipeline::{DeduplicateResult, ProgressEvent};
+// Re-exports kept for crate consumers / docs
+#[allow(unused_imports)]
+pub use pipeline::run_deduplicate;
+#[allow(unused_imports)]
 pub use settings::{AppSettings, DuplicateStrength, FileAction, PerfProfile, SceneMode};

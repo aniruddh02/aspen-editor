@@ -62,6 +62,7 @@ impl PerfProfile {
         }
     }
 
+    #[allow(dead_code)]
     pub fn preview_batch(self) -> usize {
         match self {
             Self::Low => 2,

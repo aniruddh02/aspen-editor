@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::core::settings::{FileAction, GOOD_DIR, REJECTED_DIR};
 
+#[allow(dead_code)]
 pub struct ActionResult {
     pub good_count: usize,
     pub rejected_count: usize,

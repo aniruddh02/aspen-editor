@@ -2,7 +2,7 @@
 name = "aspen"
 version = "0.1.0"
 description = "Aspen — photo deduplication and studio tools"
-authors = ["Aniruddh Tiwari"]
+authors = ["Aniruddh Tiwari <https://github.com/aniruddh02>"]
 edition = "2021"
 
 [lib]

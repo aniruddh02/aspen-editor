@@ -2,6 +2,10 @@
   "name": "aspen",
   "private": true,
   "version": "0.1.0",
+  "author": "Aniruddh Tiwari <https://github.com/aniruddh02>",
+  "contributors": [
+    "Aniruddh Tiwari <https://github.com/aniruddh02>"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

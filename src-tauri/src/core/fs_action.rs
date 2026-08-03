@@ -21,11 +21,7 @@ pub fn ensure_dest_dirs(root: &Path) -> anyhow::Result<(PathBuf, PathBuf)> {
     Ok((good, rejected))
 }
 
-pub fn place_file(
-    src: &Path,
-    dest_dir: &Path,
-    action: FileAction,
-) -> anyhow::Result<PathBuf> {
+pub fn place_file(src: &Path, dest_dir: &Path, action: FileAction) -> anyhow::Result<PathBuf> {
     let name = unique_name(dest_dir, src.file_name().unwrap_or_default())?;
     let dest = dest_dir.join(&name);
     match action {

@@ -42,7 +42,54 @@ Aspen stores blake3/pHash metadata under Application Support. Re-runs skip uncha
 
 ## Export log
 
-Expand the Live Log rail → **Export** to save a `.txt` / `.log` of the session.
+Expand the Live Log rail → **Export** to save the current structured log. Aspen also keeps rotated
+JSONL logs under `~/Library/Logs/Aspen`.
+
+## Continue to Image Editing
+
+**Continue to Image Editing** is checked by default. After Deduplicate finishes, choose the primary
+continuation button to open Image Editing with `Images-Good` already selected.
+
+Aspen saves the latest `Images-Good` path even when continuation is unchecked. You can always
+replace it with **Choose Folder**.
+
+## Prepare Lightroom Classic
+
+1. Install Node.js: `brew install node`.
+2. Install the Lightroom bridge:
+   `npx -y @mskalski/lightroom-mcp install-plugin`.
+3. Fully restart Lightroom Classic.
+4. Open **File → Plug-in Manager → Lightroom MCP** and click **Start Server**.
+
+## Image Editing
+
+1. Confirm the source is your `Images-Good` folder.
+2. Choose the portrait recipes and Small, Medium, or High strength.
+3. Leave **Use AI** off for deterministic Lightroom-only processing.
+4. Select **Process with Lightroom**.
+5. Open the resulting `Processed-Images` folder from the completion dialog.
+
+Later processing passes create numbered folders instead of replacing earlier output.
+
+Eye sharpen uses high masking to protect skin. Vignette uses Lightroom post-crop vignetting.
+Subject blur is skipped with a warning when the installed Lightroom MCP does not expose Lens Blur
+or subject masks; Aspen never substitutes a global blur.
+
+## Optional local AI
+
+Install Ollama with `brew install ollama`, then run `ollama pull qwen3:1.7b`. In Aspen Settings,
+turn on **Enable AI features**, then turn on **Use AI** in Image Editing.
+
+Chat can interpret bounded requests such as “less vignette” or “sharper eyes.” **Apply feedback**
+creates the next `Processed-Images-N` folder. The context is limited to 20 messages and
+approximately 8,000 tokens, and auto-clears according to the settings.
+
+When the master AI setting is off, Aspen does not contact or start Ollama.
+
+## Automatic settings
+
+All setting changes save automatically and are reused on the next processing run. The complete
+default and behavior reference is in the main [README](../README.md#settings-reference).
 
 ## Building installers
 

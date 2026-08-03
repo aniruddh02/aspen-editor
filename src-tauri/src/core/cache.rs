@@ -46,17 +46,18 @@ impl HashCache {
 
     pub fn clear() -> anyhow::Result<()> {
         if let Some(path) = cache_path() {
-            let _ = fs::remove_file(path);
+            match fs::remove_file(path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
         }
         Ok(())
     }
 
     pub fn get_valid(&self, path: &Path, size: u64, mtime: SystemTime) -> Option<&CacheEntry> {
         let key = path.to_string_lossy().to_string();
-        let mtime_secs = mtime
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .ok()?
-            .as_secs();
+        let mtime_secs = mtime.duration_since(SystemTime::UNIX_EPOCH).ok()?.as_secs();
         let entry = self.entries.get(&key)?;
         if entry.size == size && entry.mtime_secs == mtime_secs {
             Some(entry)

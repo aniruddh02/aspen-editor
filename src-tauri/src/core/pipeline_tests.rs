@@ -3,7 +3,7 @@ use std::fs;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use image::{ImageBuffer, Rgb, DynamicImage};
+use image::{DynamicImage, ImageBuffer, Rgb};
 
 use crate::core::pipeline::run_deduplicate;
 use crate::core::settings::{AppSettings, FileAction, SceneMode, GOOD_DIR, REJECTED_DIR};

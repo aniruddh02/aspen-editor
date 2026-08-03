@@ -82,10 +82,7 @@ pub fn score_member(img: &DynamicImage, scene: SceneMode, perf: PerfProfile) -> 
 /// Pick exactly one winner. Prefer RAW/DNG when scores are close.
 pub fn pick_winner(group: &[usize], records: &[ImageRecord], scores: &[ScoredMember]) -> usize {
     assert!(!group.is_empty());
-    let members: Vec<&ScoredMember> = scores
-        .iter()
-        .filter(|s| group.contains(&s.index))
-        .collect();
+    let members: Vec<&ScoredMember> = scores.iter().filter(|s| group.contains(&s.index)).collect();
     assert!(!members.is_empty());
 
     let max_score = members

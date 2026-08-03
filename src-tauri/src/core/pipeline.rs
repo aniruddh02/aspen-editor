@@ -195,7 +195,9 @@ where
         }
     }
 
-    let _ = cache.save();
+    cache
+        .save()
+        .map_err(|error| anyhow::anyhow!("ASPEN-CACHE-SAVE: {error}"))?;
 
     let threshold = settings.duplicate_strength.hamming_threshold();
     let groups = dedupe::cluster_duplicates(
@@ -212,8 +214,7 @@ where
         &mut on_progress,
     );
 
-    let in_group: std::collections::HashSet<usize> =
-        groups.iter().flatten().copied().collect();
+    let in_group: std::collections::HashSet<usize> = groups.iter().flatten().copied().collect();
     let unique_left = records.len().saturating_sub(in_group.len());
 
     let (good_dir, rejected_dir) = fs_action::ensure_dest_dirs(root)?;

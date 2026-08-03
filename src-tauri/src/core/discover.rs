@@ -79,7 +79,9 @@ mod tests {
 
         let found = discover_images(dir.path(), true, &default_extensions());
         assert_eq!(found.len(), 2);
-        assert!(found.iter().all(|p| !p.to_string_lossy().contains(GOOD_DIR)));
+        assert!(found
+            .iter()
+            .all(|p| !p.to_string_lossy().contains(GOOD_DIR)));
     }
 
     #[test]

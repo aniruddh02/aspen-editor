@@ -14,6 +14,20 @@
 
 [📘 User guide](docs/USER_GUIDE.md) · [📦 Repository](https://github.com/aniruddh02/aspen-editor) · [🙋 Contributor](#-author--contributor)
 
+<br />
+
+### ⬇️ Download (no build required)
+
+[![Download DMG](https://img.shields.io/badge/Download-Aspen%20v0.1.0%20DMG-2f9e6f?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen_0.1.0_aarch64.dmg)
+[![All Releases](https://img.shields.io/badge/Releases-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/aniruddh02/aspen-editor/releases)
+
+| File | Platform | Link |
+|---|---|---|
+| 💿 **Aspen_0.1.0_aarch64.dmg** | Apple Silicon Mac | [Download DMG](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen_0.1.0_aarch64.dmg) |
+| 🗜️ **Aspen.app.zip** | Apple Silicon Mac | [Download ZIP](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen.app.zip) |
+
+Open the DMG → drag **Aspen** into Applications → first launch: **Right-click → Open** (or `xattr -cr "/Applications/Aspen.app"`).
+
 </div>
 
 ---
@@ -151,11 +165,15 @@ npm run tauri dev
 
 ## 📦 Build and install
 
+Prefer the prebuilt installer? Use the [latest GitHub Release](https://github.com/aniruddh02/aspen-editor/releases/latest) — no local build needed.
+
+To build from source:
+
 ```bash
 npm run tauri build
 ```
 
-The app and DMG are written under `src-tauri/target/release/bundle/`. Drag Aspen into Applications.  
+Outputs land under `src-tauri/target/release/bundle/` (`Aspen.app` and `Aspen_*.dmg`). Drag Aspen into Applications.  
 For an unsigned personal build, right-click **Open** on first launch or run:
 
 ```bash

@@ -91,6 +91,19 @@ When the master AI setting is off, Aspen does not contact or start Ollama.
 All setting changes save automatically and are reused on the next processing run. The complete
 default and behavior reference is in the main [README](../README.md#settings-reference).
 
+## Install from GitHub Release
+
+1. Download the latest [Aspen DMG](https://github.com/aniruddh02/aspen-editor/releases/latest).
+2. Open the DMG and drag **Aspen.app** into **Applications**.
+3. First launch: **System Settings → Privacy & Security → Open Anyway**, or **Right-click → Open**.
+
+Aspen is ad-hoc signed for personal distribution (not Apple-notarized). That is expected. If an
+older download still shows “Aspen.app is damaged,” clear quarantine:
+
+```bash
+xattr -cr "/Applications/Aspen.app"
+```
+
 ## Building installers
 
-See the main [README](../README.md#build-dmg--app-bundle).
+See the main [README](../README.md#📦-build-and-install).

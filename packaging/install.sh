@@ -28,5 +28,8 @@ xattr -cr "$DEST" || true
 
 echo ""
 echo "Installed. Open Aspen from Applications / Spotlight."
-echo "If macOS blocks launch: Right-click Aspen → Open."
+echo "First launch: System Settings → Privacy & Security → Open Anyway,"
+echo "or Right-click Aspen → Open."
+echo "If macOS still says the app is damaged (older download):"
+echo "  xattr -cr \"$DEST\""
 echo "Docs: https://github.com/aniruddh02/aspen-editor#readme"

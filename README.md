@@ -26,7 +26,14 @@
 | 💿 **Aspen_0.1.0_aarch64.dmg** | Apple Silicon Mac | [Download DMG](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen_0.1.0_aarch64.dmg) |
 | 🗜️ **Aspen.app.zip** | Apple Silicon Mac | [Download ZIP](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen.app.zip) |
 
-Open the DMG → drag **Aspen** into Applications → first launch: **Right-click → Open** (or `xattr -cr "/Applications/Aspen.app"`).
+Open the DMG → drag **Aspen** into Applications.
+
+> ⚠️ **First launch on macOS:** Aspen is ad-hoc signed (not Apple-notarized). You may see *“Apple could not verify Aspen”* — that is expected. Go to **System Settings → Privacy & Security → Open Anyway**, or **Right-click Aspen → Open**.
+>
+> If you still see *“Aspen.app is damaged”* from an older download, remove quarantine and try again:
+> ```bash
+> xattr -cr "/Applications/Aspen.app"
+> ```
 
 </div>
 
@@ -173,8 +180,9 @@ To build from source:
 npm run tauri build
 ```
 
-Outputs land under `src-tauri/target/release/bundle/` (`Aspen.app` and `Aspen_*.dmg`). Drag Aspen into Applications.  
-For an unsigned personal build, right-click **Open** on first launch or run:
+Outputs land under `src-tauri/target/release/bundle/` (`Aspen.app` and `Aspen_*.dmg`). Drag Aspen into Applications.
+
+**Gatekeeper note:** builds use ad-hoc signing (`signingIdentity: "-"`), which prevents the misleading “is damaged” dialog. First open still needs **Open Anyway** / Right-click → Open until the app is Apple-notarized (requires a paid Developer ID). To clear a quarantine flag from an older download:
 
 ```bash
 xattr -cr "/Applications/Aspen.app"

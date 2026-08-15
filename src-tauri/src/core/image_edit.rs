@@ -181,10 +181,24 @@ where
         apply_ai_adjustments(&mut plan, adjustments);
     }
 
-    let transport = TokioChildProcess::new(Command::new("npx").configure(|cmd| {
-        cmd.args(["-y", "@mskalski/lightroom-mcp"]);
+    let (mcp_bin, mcp_source) = crate::core::paths::resolve_lightroom_mcp()
+        .context("ASPEN-LRC-CONNECT-SPAWN: Lightroom helper unavailable")?;
+    let mcp_args = crate::core::paths::lightroom_mcp_args(&mcp_source);
+    let transport = TokioChildProcess::new(Command::new(&mcp_bin).configure(|cmd| {
+        for arg in &mcp_args {
+            cmd.arg(arg);
+        }
+        // GUI apps often inherit a minimal PATH; keep Homebrew/Node visible for npx fallback.
+        let path = std::env::var("PATH").unwrap_or_default();
+        let augmented = format!("/opt/homebrew/bin:/usr/local/bin:{path}");
+        cmd.env("PATH", augmented);
     }))
-    .context("ASPEN-LRC-CONNECT-SPAWN: could not start npx")?;
+    .with_context(|| {
+        format!(
+            "ASPEN-LRC-CONNECT-SPAWN: could not start Lightroom helper ({mcp_source}) at {}",
+            mcp_bin.display()
+        )
+    })?;
     let service = tokio::time::timeout(Duration::from_secs(20), ().serve(transport))
         .await
         .context("ASPEN-LRC-CONNECT-TIMEOUT: Lightroom MCP initialization timed out")?

@@ -428,9 +428,53 @@ fn get_logs_dir() -> Result<String, String> {
         .map_err(|error| error.to_string())
 }
 
+/// Folder holding the per-run benchmark JSONL files. Created on demand so the
+/// "reveal" action works even before the first diagnostic run.
+#[tauri::command]
+fn get_benchmark_dir() -> Result<String, String> {
+    let dir = core::benchmark::benchmark_dir()
+        .ok_or_else(|| "ASPEN-FS-LOGS: cannot resolve benchmark directory".to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 fn clear_app_logs() -> Result<(), String> {
     logging::clear().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn open_folder_path(path: String) -> Result<(), String> {
+    let target = PathBuf::from(&path);
+    core::paths::open_path(&target).map_err(|error| {
+        let message = format!("{error:#}");
+        logging::record(
+            LogEvent::new(
+                LogLevel::Error,
+                "app",
+                "open_folder_path",
+                "open",
+                "folder.open",
+                "Failed to open folder",
+            )
+            .with_error("ASPEN-FS-OPEN", &message),
+        );
+        message
+    })?;
+    logging::record(LogEvent::new(
+        LogLevel::Info,
+        "app",
+        "open_folder_path",
+        "open",
+        "folder.open",
+        format!("Opened {path}"),
+    ));
+    Ok(())
+}
+
+#[tauri::command]
+fn get_runtime_deps_status() -> core::paths::RuntimeDepsStatus {
+    core::paths::runtime_deps_status()
 }
 
 #[tauri::command]
@@ -471,7 +515,10 @@ pub fn run() {
             record_ui_event,
             get_log_events,
             get_logs_dir,
+            get_benchmark_dir,
             clear_app_logs,
+            open_folder_path,
+            get_runtime_deps_status,
             export_log,
         ])
         .run(tauri::generate_context!())

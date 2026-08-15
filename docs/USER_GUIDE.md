@@ -16,13 +16,15 @@
 
 ## Scene mode
 
-- **Portrait** (default): weights face/eye clarity more heavily when ranking duplicates.
-- **Landscape**: sharpness-only ranking (faster).
+- **Portrait** (default): weights face/eye clarity and a subject-in-focus proxy (center sharpness vs edges) when ranking duplicates.
+- **Landscape**: sharpness + subject-focus scoring (faster; no face weighting).
+
+True eye/face focus detection is heuristic today (no ML). A future LLM/vision pass can re-rank winners using the same scores Aspen already logs.
 
 ## Move vs Copy
 
+- **Copy** (default): originals stay put; copies are written into Good/Rejected.
 - **Move**: originals are relocated into Good/Rejected.
-- **Copy**: originals stay put; copies are written into Good/Rejected.
 
 ## Duplicate strength
 
@@ -45,6 +47,28 @@ Aspen stores blake3/pHash metadata under Application Support. Re-runs skip uncha
 Expand the Live Log rail → **Export** to save the current structured log. Aspen also keeps rotated
 JSONL logs under `~/Library/Logs/Aspen`.
 
+## Ranking benchmark capture
+
+Settings → Diagnostics → **Capture ranking benchmark data** records how Aspen judged every photo,
+so its keeper choices can be tuned against your real bursts instead of generic test images.
+
+With it enabled, each Deduplicate run writes two files to `~/Library/Logs/Aspen/benchmark`
+(**Open Benchmark Data** in Settings reveals the folder):
+
+- `aspen-benchmark-<timestamp>-<run>.jsonl` — one record per image with every quality metric and
+  the intermediate values behind it, one per duplicate group with the pairwise hash distances and
+  the winner, plus the run's settings.
+- `aspen-labels-<timestamp>-<run>.csv` — a spreadsheet listing each group, the files in it, and
+  which one Aspen kept.
+
+To contribute a labeled burst, open the CSV, fill in `your_pick` with the filename you would have
+kept, optionally add `your_reason` and a 1–5 `confidence`, then send both files back. The
+disagreements between `aspen_picked` and `your_pick` are what re-tune the scoring weights.
+
+No image data is written, and file paths are recorded relative to the folder you scanned unless
+**Include full paths in exports** is also enabled. Capture is off by default because it scores
+non-duplicate images too, which makes a run slightly slower.
+
 ## Continue to Image Editing
 
 **Continue to Image Editing** is checked by default. After Deduplicate finishes, choose the primary
@@ -55,11 +79,19 @@ replace it with **Choose Folder**.
 
 ## Prepare Lightroom Classic
 
-1. Install Node.js: `brew install node`.
+Aspen ships a bundled Lightroom helper, so Homebrew and a permanent Node install are **not**
+required to run Image Editing. You still install the Lightroom MCP **plugin** once:
+
+1. If you do not have Node yet, install Node.js LTS from
+   [nodejs.org](https://nodejs.org/en/download) (macOS `.pkg` — no Homebrew).
 2. Install the Lightroom bridge:
    `npx -y @mskalski/lightroom-mcp install-plugin`.
 3. Fully restart Lightroom Classic.
 4. Open **File → Plug-in Manager → Lightroom MCP** and click **Start Server**.
+
+On the Image Editing screen, Aspen reports whether the helper is ready. If the bundled helper is
+missing, install Node as above so Aspen can fall back to `npx`, or reinstall Aspen from the latest
+release.
 
 ## Image Editing
 

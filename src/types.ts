@@ -14,6 +14,7 @@ export interface AppSettings {
   continueToImageEditing: boolean;
   lastImagesGoodPath: string;
   enableAiFeatures: boolean;
+  useAiForDedup: boolean;
   useAiForEdit: boolean;
   eyeSharpen: boolean;
   eyeSharpenStrength: EditStrength;
@@ -34,6 +35,7 @@ export interface AppSettings {
   verboseLogging: boolean;
   includeFullPathsInLogs: boolean;
   includeChatPromptsInLogs: boolean;
+  benchmarkLogging: boolean;
 }
 
 export interface ProgressEvent {
@@ -49,10 +51,12 @@ export interface DeduplicateResult {
   duplicateGroups: number;
   keptGood: number;
   rejected: number;
-  uniqueLeft: number;
+  uniqueUntouched: number;
   errors: string[];
   goodDir: string;
   rejectedDir: string;
+  aiReranked: number;
+  benchmarkLog: string | null;
 }
 
 export interface ImageEditProgress {
@@ -80,13 +84,14 @@ export interface ChatMessage {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   sceneMode: "portrait",
-  fileAction: "move",
+  fileAction: "copy",
   perfProfile: "medium",
   duplicateStrength: "balanced",
   includeSubfolders: true,
   continueToImageEditing: true,
   lastImagesGoodPath: "",
   enableAiFeatures: false,
+  useAiForDedup: false,
   useAiForEdit: false,
   eyeSharpen: true,
   eyeSharpenStrength: "medium",
@@ -99,7 +104,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   colorTone: true,
   exposureNormalize: true,
   noiseReduction: false,
-  ollamaModel: "qwen3:1.7b",
+  ollamaModel: "",
   ollamaTemperature: 0.2,
   chatAutoClearAfterRun: true,
   chatAutoClearOnLeave: true,
@@ -107,6 +112,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   verboseLogging: false,
   includeFullPathsInLogs: false,
   includeChatPromptsInLogs: false,
+  benchmarkLogging: false,
   enabledExtensions: [
     "arw", "srf", "sr2", "nef", "nrw", "cr2", "cr3", "crw", "raf", "dng",
     "jpg", "jpeg", "png", "tif", "tiff", "webp", "bmp", "gif", "heic", "heif",

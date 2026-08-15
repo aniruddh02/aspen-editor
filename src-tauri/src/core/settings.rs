@@ -16,8 +16,8 @@ pub enum SceneMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum FileAction {
-    #[default]
     Move,
+    #[default]
     Copy,
 }
 
@@ -101,6 +101,7 @@ pub struct AppSettings {
     pub continue_to_image_editing: bool,
     pub last_images_good_path: String,
     pub enable_ai_features: bool,
+    pub use_ai_for_dedup: bool,
     pub use_ai_for_edit: bool,
     pub eye_sharpen: bool,
     pub eye_sharpen_strength: EditStrength,
@@ -121,13 +122,16 @@ pub struct AppSettings {
     pub verbose_logging: bool,
     pub include_full_paths_in_logs: bool,
     pub include_chat_prompts_in_logs: bool,
+    /// Write a per-run JSONL of every quality metric and ranking decision.
+    /// Off by default: it adds a scoring pass over non-duplicate images.
+    pub benchmark_logging: bool,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             scene_mode: SceneMode::Portrait,
-            file_action: FileAction::Move,
+            file_action: FileAction::Copy,
             perf_profile: PerfProfile::Medium,
             duplicate_strength: DuplicateStrength::Balanced,
             include_subfolders: true,
@@ -135,6 +139,7 @@ impl Default for AppSettings {
             continue_to_image_editing: true,
             last_images_good_path: String::new(),
             enable_ai_features: false,
+            use_ai_for_dedup: false,
             use_ai_for_edit: false,
             eye_sharpen: true,
             eye_sharpen_strength: EditStrength::Medium,
@@ -147,7 +152,7 @@ impl Default for AppSettings {
             color_tone: true,
             exposure_normalize: true,
             noise_reduction: false,
-            ollama_model: "qwen3:1.7b".to_string(),
+            ollama_model: String::new(),
             ollama_temperature: 0.2,
             chat_auto_clear_after_run: true,
             chat_auto_clear_on_leave: true,
@@ -155,6 +160,7 @@ impl Default for AppSettings {
             verbose_logging: false,
             include_full_paths_in_logs: false,
             include_chat_prompts_in_logs: false,
+            benchmark_logging: false,
         }
     }
 }
@@ -251,13 +257,14 @@ mod tests {
         let settings = AppSettings::default();
         assert!(settings.continue_to_image_editing);
         assert!(!settings.enable_ai_features);
+        assert!(!settings.use_ai_for_dedup);
         assert!(!settings.use_ai_for_edit);
         assert!(settings.eye_sharpen);
         assert_eq!(settings.eye_sharpen_strength, EditStrength::Medium);
         assert!(settings.vignette);
         assert!(settings.subject_blur);
         assert!(!settings.noise_reduction);
-        assert_eq!(settings.ollama_model, "qwen3:1.7b");
+        assert_eq!(settings.ollama_model, "");
     }
 
     #[test]

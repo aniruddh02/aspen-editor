@@ -1,11 +1,13 @@
 //! Aspen core — image discovery, deduplication, quality scoring, file actions.
 
+pub mod benchmark;
 pub mod cache;
 pub mod dedupe;
 pub mod discover;
 pub mod fs_action;
 pub mod image_edit;
 pub mod logging;
+pub mod paths;
 pub mod pipeline;
 #[cfg(test)]
 mod pipeline_tests;

@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Aspen",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "identifier": "com.aniruddh02.aspen",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "bash scripts/fetch-lightroom-mcp.sh && npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -33,6 +33,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "resources": [
+      "resources/lightroom-mcp"
     ],
     "macOS": {
       "minimumSystemVersion": "12.0",

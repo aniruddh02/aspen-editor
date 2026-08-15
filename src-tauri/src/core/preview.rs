@@ -40,11 +40,28 @@ fn downscale(img: DynamicImage, max_long_edge: u32) -> DynamicImage {
 fn load_raw_preview(path: &Path) -> anyhow::Result<DynamicImage> {
     let data = std::fs::read(path)?;
     if let Some(jpeg) = find_largest_jpeg(&data) {
-        let img = image::load_from_memory(jpeg)?;
-        return Ok(img);
+        // Tiny thumbnails are poor for focus scoring; prefer ImageIO/sips when possible.
+        if jpeg.len() > 32_768 {
+            if let Ok(img) = image::load_from_memory(jpeg) {
+                return Ok(img);
+            }
+        }
     }
-    // Last resort: try opening as image (won't work for most RAW)
-    anyhow::bail!("no embedded JPEG preview found in {}", path.display())
+    load_via_sips(path).or_else(|sips_err| {
+        if let Some(jpeg) = find_largest_jpeg(&data) {
+            image::load_from_memory(jpeg).map_err(|e| {
+                anyhow::anyhow!(
+                    "RAW preview failed (sips: {sips_err}; embedded jpeg: {e}) for {}",
+                    path.display()
+                )
+            })
+        } else {
+            Err(anyhow::anyhow!(
+                "no usable RAW preview for {} ({sips_err})",
+                path.display()
+            ))
+        }
+    })
 }
 
 fn find_largest_jpeg(data: &[u8]) -> Option<&[u8]> {
@@ -78,13 +95,17 @@ fn find_eoi(data: &[u8], start: usize) -> Option<usize> {
 }
 
 fn load_heic_via_sips(path: &Path) -> anyhow::Result<DynamicImage> {
+    load_via_sips(path)
+}
+
+fn load_via_sips(path: &Path) -> anyhow::Result<DynamicImage> {
     let tmp = tempfile::Builder::new().suffix(".jpg").tempfile()?;
     let status = Command::new("sips")
         .args(["-s", "format", "jpeg", path.to_str().unwrap_or(""), "--out"])
         .arg(tmp.path())
         .status()?;
     if !status.success() {
-        anyhow::bail!("sips failed converting HEIC");
+        anyhow::bail!("sips failed converting {}", path.display());
     }
     Ok(image::open(tmp.path())?)
 }

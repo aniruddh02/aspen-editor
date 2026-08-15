@@ -460,7 +460,7 @@ function App() {
               <br />
               {result.keptGood} kept in Images-Good · {result.rejected} moved/copied to Rejected
               <br />
-              {result.uniqueLeft} unique images left in place
+              {result.uniqueUntouched} unique images also in Good
             </p>
             <div className="tree">
               {result.folder}

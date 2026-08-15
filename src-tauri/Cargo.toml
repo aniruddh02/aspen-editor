@@ -1,6 +1,6 @@
 [package]
 name = "aspen"
-version = "0.1.0"
+version = "0.1.2"
 description = "Aspen — photo deduplication and studio tools"
 authors = ["Aniruddh Tiwari <https://github.com/aniruddh02>"]
 edition = "2021"
@@ -33,7 +33,8 @@ num-traits = "0.2"
 tempfile = "3"
 rmcp = { version = "0.8", features = ["client", "transport-child-process"] }
 tokio = { version = "1", features = ["process", "rt-multi-thread", "time"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
+base64 = "0.22"
 uuid = { version = "1", features = ["v4", "serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "json"] }

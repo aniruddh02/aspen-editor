@@ -77,15 +77,28 @@ Shoot folder
 
 | 🧩 Dependency | ⏱️ Required when | 📥 Install |
 |---|---|---|
-| 🌲 Aspen | Always | Install the DMG or build locally |
+| 🌲 Aspen | Always | Install the DMG from [Releases](https://github.com/aniruddh02/aspen-editor/releases/latest) |
 | 📷 Lightroom Classic | Image Editing | Install through Adobe Creative Cloud |
-| 🔌 Lightroom MCP plugin | Image Editing | `npx -y @mskalski/lightroom-mcp install-plugin` |
-| 🟢 Node.js | Running MCP through `npx` | `brew install node` |
-| 🦙 Ollama | Only when AI features are enabled | `brew install ollama` |
+| 🔌 Lightroom MCP plugin | Image Editing (one-time) | See setup below — Homebrew is **not** required |
+| 🟢 Node.js | Only for the one-time plugin install, or if the bundled helper is missing | Download the macOS **LTS `.pkg`** from [nodejs.org](https://nodejs.org/en/download) |
+| 🦙 Ollama | Only when AI features are enabled | Download from [ollama.com](https://ollama.com/download) or `brew install ollama` |
 | 🧠 Qwen3 1.7B | Default local AI model | `ollama pull qwen3:1.7b` |
 
-> 💡 After installing the plugin, fully restart Lightroom Classic, open **File → Plug-in Manager → Lightroom MCP**, and click **Start Server**.  
-> Bulk Image Editing does **not** need Ollama.
+### Image Editing without Homebrew
+
+Aspen **bundles** a standalone Lightroom MCP helper in the app. Processing does **not** need Node.js or `npx` on the user’s Mac.
+
+**One-time Lightroom plugin setup** (still required so Classic can talk to Aspen):
+
+1. Install Node.js LTS from [nodejs.org](https://nodejs.org/en/download) (official installer — no Brew).
+2. In Terminal: `npx -y @mskalski/lightroom-mcp install-plugin`
+3. Fully restart Lightroom Classic.
+4. Open **File → Plug-in Manager → Lightroom MCP** and click **Start Server**.
+
+Aspen checks for the bundled helper when you open Image Editing. If it is missing, Aspen can download a cached copy, or fall back to `npx` when Node is installed. Silent Node installs inside the DMG are not supported (macOS requires an admin `.pkg` for that).
+
+> 💡 Bulk Image Editing does **not** need Ollama.  
+> After installing the plugin, keep the Lightroom MCP server **Started** while Aspen processes.
 
 ---
 
@@ -100,7 +113,7 @@ Shoot folder
 | 👤 Scene | Portrait | Portrait weights face/eye clarity while selecting a winner. Landscape uses sharpness scoring. |
 | 🧲 Duplicate strength | Balanced | Loose groups more near-duplicates; Balanced is the normal threshold; Strict groups only very similar frames. |
 | ⚡ Performance | Medium | Controls worker count, face scoring, preview batch size, and confirmatory near-duplicate checks. |
-| 📂 File action | Move | Move reorganizes originals; Copy preserves originals and writes copies to the result folders. |
+| 📂 File action | Copy | Move reorganizes originals; Copy preserves originals and writes copies to the result folders. |
 | 📁 Include subfolders | On | Recursively scans nested folders while skipping Aspen output folders. |
 | ➡️ Continue to Image Editing | On | Adds the primary continuation action after Deduplicate and preselects `Images-Good`. |
 

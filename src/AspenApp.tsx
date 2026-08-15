@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import "./App.css";
 import {
   AppSettings,
@@ -27,12 +27,41 @@ interface LogLine {
   kind?: "good" | "reject" | "plain";
 }
 
+interface RuntimeDepsStatus {
+  lightroomMcpReady: boolean;
+  lightroomMcpPath: string | null;
+  lightroomMcpSource: string;
+  nodeAvailable: boolean;
+  npxPath: string | null;
+  nodeInstallUrl: string;
+  message: string;
+}
+
 function nowTs() {
   return new Date().toLocaleTimeString([], { hour12: false });
 }
 
 function redactPaths(message: string) {
   return message.replace(/\/(?:Users|Volumes|private|tmp)\/[^\s,;)]+/g, "[path]");
+}
+
+const VISION_MODEL_HINTS = [
+  "vl",
+  "vision",
+  "llava",
+  "moondream",
+  "minicpm-v",
+  "bakllava",
+  "gemma3",
+  "pixtral",
+  "internvl",
+  "cogvlm",
+];
+
+function isVisionModel(model: string): boolean {
+  if (!model) return false;
+  const m = model.toLowerCase();
+  return VISION_MODEL_HINTS.some((hint) => m.includes(hint));
 }
 
 function latestUserFeedback(messages: ChatMessage[]) {
@@ -151,6 +180,7 @@ export default function AspenApp() {
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [models, setModels] = useState<string[]>([]);
+  const [runtimeDeps, setRuntimeDeps] = useState<RuntimeDepsStatus | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   function addLog(
@@ -207,6 +237,7 @@ export default function AspenApp() {
         settingsRef.current = next;
         setSettings(next);
         setEditSource(next.lastImagesGoodPath || "");
+        if (next.enableAiFeatures) void refreshModels();
       })
       .catch((error) => {
         addLog(`Settings load failed; defaults restored: ${String(error)}`, "app", "error");
@@ -215,6 +246,15 @@ export default function AspenApp() {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (feature !== "image-edit") return;
+    invoke<RuntimeDepsStatus>("get_runtime_deps_status")
+      .then(setRuntimeDeps)
+      .catch((error) => {
+        addLog(`Runtime dependency check failed: ${String(error)}`, "image-edit", "warn");
+      });
+  }, [feature]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -275,9 +315,16 @@ export default function AspenApp() {
     };
   }, []);
 
+  // Only auto-scroll when log is open AND user is already near the bottom
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+    if (!logOpen) return;
+    const el = logEndRef.current?.parentElement;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (nearBottom) {
+      logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs, logOpen]);
 
   const pct = useMemo(
     () =>
@@ -303,7 +350,6 @@ export default function AspenApp() {
     setRunning(true);
     setResult(null);
     setProgress({ current: 0, total: 0 });
-    setLogOpen(true);
     addLog(`Starting Deduplicate on ${folder}`, "deduplicate");
     try {
       const completed = await invoke<DeduplicateResult>("run_deduplicate_cmd", {
@@ -325,7 +371,6 @@ export default function AspenApp() {
     setEditRunning(true);
     setEditResult(null);
     setProgress({ current: 0, total: 0 });
-    setLogOpen(true);
     addLog(`Starting Image Editing on ${editSource}`, "image-edit");
     try {
       const completed = await invoke<ImageEditResult>("run_image_edit_cmd", {
@@ -375,11 +420,26 @@ export default function AspenApp() {
     try {
       const available = await invoke<string[]>("list_ollama_models_cmd");
       setModels(available);
-      if (available.length && !available.includes(settings.ollamaModel)) {
+      if (available.length === 0) {
+        addLog(
+          "No Ollama models found. Install Ollama and pull a model (e.g. `ollama pull qwen3:1.7b`), then click Refresh.",
+          "app",
+          "warn",
+        );
+        if (settingsRef.current.ollamaModel) updateSettings({ ollamaModel: "" });
+        return;
+      }
+      if (!available.includes(settingsRef.current.ollamaModel)) {
         updateSettings({ ollamaModel: available[0] });
       }
+      addLog(`Detected ${available.length} Ollama model(s): ${available.join(", ")}`, "app");
     } catch (error) {
-      addLog(`Ollama model discovery failed: ${String(error)}`, "image-edit", "warn");
+      addLog(
+        `Ollama not reachable (${String(error)}). Is Ollama running? Install from ollama.com/download.`,
+        "app",
+        "warn",
+      );
+      setModels([]);
     }
   }
 
@@ -546,6 +606,25 @@ export default function AspenApp() {
             <div className="workspace-header">
               <h1>Image Editing</h1>
               <p>Apply a tasteful portrait finish through Lightroom Classic.</p>
+              {runtimeDeps && (
+                <p className={`deps-status ${runtimeDeps.lightroomMcpReady ? "ok" : "warn"}`}>
+                  {runtimeDeps.lightroomMcpReady
+                    ? `Lightroom helper ready (${runtimeDeps.lightroomMcpSource}). Node.js is not required to process.`
+                    : runtimeDeps.message}
+                  {!runtimeDeps.lightroomMcpReady && (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        className="link-btn"
+                        onClick={() => void openUrl(runtimeDeps.nodeInstallUrl)}
+                      >
+                        Install Node.js LTS
+                      </button>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
             <div className={`panel edit-layout ${settings.useAiForEdit ? "with-chat" : ""}`}>
               <section>
@@ -731,27 +810,73 @@ export default function AspenApp() {
               onChange={(enableAiFeatures) => {
                 updateSettings({
                   enableAiFeatures,
-                  ...(!enableAiFeatures ? { useAiForEdit: false } : {}),
+                  ...(!enableAiFeatures ? { useAiForEdit: false, useAiForDedup: false } : {}),
                 });
                 if (!enableAiFeatures) setChat([]);
                 else void refreshModels();
               }}
             />
             <div className={`ai-settings ${!settings.enableAiFeatures ? "disabled" : ""}`}>
+              <Check
+                checked={settings.useAiForDedup}
+                disabled={!settings.enableAiFeatures || !models.length}
+                label="Use AI for Deduplicate re-ranking"
+                detail={
+                  isVisionModel(settings.ollamaModel)
+                    ? "Vision model detected — Aspen will send actual thumbnails so the AI can check eyes-open, expression, and moment."
+                    : "Text model — Aspen will send numeric scores. For eye/expression detection, use a vision model (qwen2.5vl, llava, moondream, etc.)."
+                }
+                onChange={(useAiForDedup) => updateSettings({ useAiForDedup })}
+              />
               <label className="field">
-                <span>Ollama model</span>
-                <select
-                  disabled={!settings.enableAiFeatures}
-                  value={settings.ollamaModel}
-                  onChange={(event) => updateSettings({ ollamaModel: event.target.value })}
-                >
-                  {[...new Set([settings.ollamaModel, ...models])].map((model) => (
-                    <option key={model}>{model}</option>
-                  ))}
-                </select>
+                <span>
+                  Ollama model
+                  <button
+                    type="button"
+                    className="link-btn refresh-btn"
+                    disabled={!settings.enableAiFeatures}
+                    onClick={() => void refreshModels()}
+                  >
+                    Refresh
+                  </button>
+                </span>
+                {models.length === 0 ? (
+                  <div className="empty-models">
+                    <p>
+                      No Ollama models detected.{" "}
+                      <button
+                        type="button"
+                        className="link-btn"
+                        onClick={() => openUrl("https://ollama.com/download")}
+                      >
+                        Install Ollama
+                      </button>{" "}
+                      then run in Terminal:
+                    </p>
+                    <code>ollama pull qwen3:1.7b</code>
+                    <p className="empty-models-hint">
+                      Then click Refresh above.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    disabled={!settings.enableAiFeatures}
+                    value={settings.ollamaModel || models[0]}
+                    onChange={(event) => updateSettings({ ollamaModel: event.target.value })}
+                  >
+                    {models.map((model) => (
+                      <option key={model} value={model}>{model}</option>
+                    ))}
+                  </select>
+                )}
               </label>
               <label className="field">
-                <span>Temperature: {settings.ollamaTemperature.toFixed(1)}</span>
+                <span
+                  title="Controls how creative/random the model is. Low (0.0-0.2) = deterministic, consistent picks based on the numeric scores. High (0.7-1.0) = more variety, may pick differently on repeated runs. For deduplication, keep it low (0.1-0.3) so the model reliably follows the metric-based reasoning."
+                >
+                  Temperature: {settings.ollamaTemperature.toFixed(1)}{" "}
+                  <span className="help-badge">?</span>
+                </span>
                 <input
                   type="range"
                   min="0"
@@ -763,27 +888,10 @@ export default function AspenApp() {
                     updateSettings({ ollamaTemperature: Number(event.target.value) })
                   }
                 />
+                <span className="field-hint">
+                  Low = consistent, deterministic picks. High = more varied. Recommended: 0.1–0.3 for dedup.
+                </span>
               </label>
-              <Check
-                checked={settings.chatAutoClearAfterRun}
-                disabled={!settings.enableAiFeatures}
-                label="Clear chat after run"
-                onChange={(chatAutoClearAfterRun) => updateSettings({ chatAutoClearAfterRun })}
-              />
-              <Check
-                checked={settings.chatAutoClearOnLeave}
-                disabled={!settings.enableAiFeatures}
-                label="Clear chat when leaving Image Editing"
-                onChange={(chatAutoClearOnLeave) => updateSettings({ chatAutoClearOnLeave })}
-              />
-              <Check
-                checked={settings.chatAutoClearOnAiOff}
-                disabled={!settings.enableAiFeatures}
-                label="Clear chat when Use AI is turned off"
-                onChange={(chatAutoClearOnAiOff) =>
-                  updateSettings({ chatAutoClearOnAiOff })
-                }
-              />
             </div>
           </section>
           <section className="settings-section">
@@ -805,13 +913,46 @@ export default function AspenApp() {
                 updateSettings({ includeChatPromptsInLogs })
               }
             />
+            <Check
+              checked={settings.benchmarkLogging}
+              label="Capture ranking benchmark data"
+              onChange={(benchmarkLogging) => updateSettings({ benchmarkLogging })}
+            />
+            <p className="field-hint">
+              Writes one JSONL file per run with every quality metric and keeper decision, so
+              ranking can be tuned against your real bursts. No image data is included, and paths
+              stay relative unless full paths are enabled above. Slows runs slightly.
+            </p>
             <div className="drawer-actions">
               <button
                 type="button"
                 className="ghost-btn"
-                onClick={async () => openPath(await invoke<string>("get_logs_dir"))}
+                onClick={async () => {
+                  try {
+                    await invoke("open_folder_path", {
+                      path: await invoke<string>("get_logs_dir"),
+                    });
+                  } catch (error) {
+                    addLog(`Open Logs failed: ${String(error)}`, "app", "error");
+                  }
+                }}
               >
                 Open Logs
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={async () => {
+                  try {
+                    await invoke("open_folder_path", {
+                      path: await invoke<string>("get_benchmark_dir"),
+                    });
+                  } catch (error) {
+                    addLog(`Open Benchmark Data failed: ${String(error)}`, "app", "error");
+                  }
+                }}
+              >
+                Open Benchmark Data
               </button>
               <button type="button" className="ghost-btn" onClick={exportLog}>
                 Export Run
@@ -839,13 +980,31 @@ export default function AspenApp() {
         <div className="modal-backdrop">
           <div className="modal">
             <h2>Deduplicate complete</h2>
-            <p>
-              {result.duplicateGroups} groups resolved · {result.keptGood} kept ·{" "}
-              {result.rejected} rejected · {result.uniqueLeft} unique untouched
-            </p>
+            <div className="result-summary">
+              <p className="result-hero">
+                <strong>{result.keptGood}</strong> best images are in <strong>Images-Good</strong>
+              </p>
+              <ul className="result-breakdown">
+                <li>{result.duplicateGroups} duplicate group{result.duplicateGroups !== 1 ? "s" : ""} found</li>
+                <li>{result.rejected} inferior duplicate{result.rejected !== 1 ? "s" : ""} moved to Rejected</li>
+                <li>{result.uniqueUntouched} unique image{result.uniqueUntouched !== 1 ? "s" : ""} (no duplicates) also placed in Good</li>
+                {result.aiReranked > 0 && (
+                  <li>{result.aiReranked} group{result.aiReranked !== 1 ? "s" : ""} re-ranked by AI</li>
+                )}
+                {result.benchmarkLog && (
+                  <li>Benchmark data written to <code>{result.benchmarkLog}</code></li>
+                )}
+              </ul>
+              <p className="result-tip">
+                Pick from <strong>Images-Good</strong> — it contains every best image
+                {settings.fileAction === "copy"
+                  ? ". Originals are untouched."
+                  : ". Originals were moved."}
+              </p>
+            </div>
             <div className="tree">
               {result.folder}
-              <br />├── Images-Good
+              <br />├── <strong>Images-Good</strong> ← your best picks
               <br />└── Rejected
             </div>
             <div className="actions">
@@ -861,8 +1020,31 @@ export default function AspenApp() {
                   Continue to Image Editing
                 </button>
               )}
-              <button type="button" className="ghost-btn" onClick={() => openPath(result.folder)}>
-                Open Folder
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={async () => {
+                  try {
+                    await invoke("open_folder_path", { path: result.goodDir });
+                  } catch (error) {
+                    addLog(`Open Folder failed: ${String(error)}`, "deduplicate", "error");
+                  }
+                }}
+              >
+                Open Images-Good
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={async () => {
+                  try {
+                    await invoke("open_folder_path", { path: result.folder });
+                  } catch (error) {
+                    addLog(`Open Folder failed: ${String(error)}`, "deduplicate", "error");
+                  }
+                }}
+              >
+                Open Source Folder
               </button>
               <button type="button" className="ghost-btn" onClick={() => setResult(null)}>
                 Done
@@ -888,7 +1070,13 @@ export default function AspenApp() {
               <button
                 type="button"
                 className="primary-btn"
-                onClick={() => openPath(editResult.outputPath)}
+                onClick={async () => {
+                  try {
+                    await invoke("open_folder_path", { path: editResult.outputPath });
+                  } catch (error) {
+                    addLog(`Open folder failed: ${String(error)}`, "image-edit", "error");
+                  }
+                }}
               >
                 Open Processed Images
               </button>
@@ -984,13 +1172,16 @@ function Progress({
   total: number;
   pct: number;
 }) {
+  const indeterminate = !total;
   return (
     <div className="progress">
-      <div className="progress-bar">
-        <span style={{ width: `${pct}%` }} />
+      <div className={`progress-bar ${indeterminate ? "indeterminate" : ""}`}>
+        <span style={indeterminate ? undefined : { width: `${pct}%` }} />
       </div>
       <div className="path-line">
-        {current} / {total || "…"} ({pct}%)
+        {indeterminate
+          ? "Preparing…"
+          : `Processed ${current} of ${total} files (${pct}%)`}
       </div>
     </div>
   );

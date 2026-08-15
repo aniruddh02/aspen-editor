@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 /// Compute 64-bit perceptual hash (DCT pHash).
 pub fn phash(img: &DynamicImage) -> u64 {
-    let gray = img.to_luma8();
+    let gray = normalize_luma(img.to_luma8());
     let resized = image::imageops::resize(&gray, 32, 32, image::imageops::FilterType::Triangle);
     let mut samples: Vec<f64> = resized.pixels().map(|p| p.0[0] as f64).collect();
 
@@ -51,7 +51,7 @@ pub fn hamming(a: u64, b: u64) -> u32 {
 
 /// Difference hash for High-mode confirmation.
 pub fn dhash(img: &DynamicImage) -> u64 {
-    let gray = img.to_luma8();
+    let gray = normalize_luma(img.to_luma8());
     let resized = image::imageops::resize(&gray, 9, 8, image::imageops::FilterType::Triangle);
     let mut hash = 0u64;
     let mut bit = 0;
@@ -66,6 +66,52 @@ pub fn dhash(img: &DynamicImage) -> u64 {
         }
     }
     hash
+}
+
+/// Stretch the useful luminance range before perceptual hashing. This makes
+/// hashes robust to exposure-only variants while clipping the extreme 1% tails
+/// so a few hot or dead pixels do not control the transform.
+fn normalize_luma(mut gray: image::GrayImage) -> image::GrayImage {
+    let total = gray.pixels().count() as u64;
+    if total == 0 {
+        return gray;
+    }
+
+    let mut histogram = [0u64; 256];
+    for pixel in gray.pixels() {
+        histogram[pixel.0[0] as usize] += 1;
+    }
+
+    let tail = (total / 100).max(1);
+    let mut cumulative = 0u64;
+    let mut low = 0usize;
+    for (value, count) in histogram.iter().enumerate() {
+        cumulative += count;
+        if cumulative >= tail {
+            low = value;
+            break;
+        }
+    }
+
+    cumulative = 0;
+    let mut high = 255usize;
+    for (value, count) in histogram.iter().enumerate().rev() {
+        cumulative += count;
+        if cumulative >= tail {
+            high = value;
+            break;
+        }
+    }
+
+    if high <= low {
+        return gray;
+    }
+
+    let scale = 255.0 / (high - low) as f64;
+    for pixel in gray.pixels_mut() {
+        pixel.0[0] = (((pixel.0[0] as usize).clamp(low, high) - low) as f64 * scale).round() as u8;
+    }
+    gray
 }
 
 #[derive(Debug, Clone)]
@@ -155,7 +201,10 @@ pub fn cluster_duplicates(
             if dist <= hamming_threshold {
                 if confirm_dhash {
                     if let (Some(da), Some(db)) = (records[ia].dhash, records[ib].dhash) {
-                        if hamming(da, db) > hamming_threshold + 2 {
+                        // dHash is more sensitive than pHash to clipped shadows
+                        // and highlights. Keep it as a confirmation signal, but
+                        // allow a small exposure tolerance after pHash matched.
+                        if hamming(da, db) > hamming_threshold + 4 {
                             continue;
                         }
                     }

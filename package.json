@@ -1,7 +1,7 @@
 {
   "name": "aspen",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "author": "Aniruddh Tiwari <https://github.com/aniruddh02>",
   "contributors": [
     "Aniruddh Tiwari <https://github.com/aniruddh02>"
@@ -12,6 +12,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "fetch:mcp": "bash scripts/fetch-lightroom-mcp.sh",
     "test": "vitest run",
     "test:watch": "vitest"
   },

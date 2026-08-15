@@ -18,12 +18,12 @@
 
 ### ⬇️ Download (no build required)
 
-[![Download DMG](https://img.shields.io/badge/Download-Aspen%20v0.1.0%20DMG-2f9e6f?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen_0.1.0_aarch64.dmg)
+[![Download DMG](https://img.shields.io/badge/Download-Aspen%20v0.1.2%20DMG-2f9e6f?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen_0.1.2_aarch64.dmg)
 [![All Releases](https://img.shields.io/badge/Releases-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/aniruddh02/aspen-editor/releases)
 
 | File | Platform | Link |
 |---|---|---|
-| 💿 **Aspen_0.1.0_aarch64.dmg** | Apple Silicon Mac | [Download DMG](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen_0.1.0_aarch64.dmg) |
+| 💿 **Aspen_0.1.2_aarch64.dmg** | Apple Silicon Mac | [Download DMG](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen_0.1.2_aarch64.dmg) |
 | 🗜️ **Aspen.app.zip** | Apple Silicon Mac | [Download ZIP](https://github.com/aniruddh02/aspen-editor/releases/latest/download/Aspen.app.zip) |
 
 Open the DMG → drag **Aspen** into Applications.

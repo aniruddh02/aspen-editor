@@ -161,6 +161,11 @@ impl UnionFind {
             self.rank[ra] += 1;
         }
     }
+
+    fn members_of(&mut self, n: usize, idx: usize) -> Vec<usize> {
+        let root = self.find(idx);
+        (0..n).filter(|&i| self.find(i) == root).collect()
+    }
 }
 
 /// Cluster by exact blake3 then perceptual hash.
@@ -186,31 +191,41 @@ pub fn cluster_duplicates(
         }
     }
 
-    // Perceptual near-duplicates
+    // Perceptual near-duplicates. Merge nearest pairs first so a borderline
+    // match cannot claim one burst member and then block the rest of the burst.
     let with_phash: Vec<(usize, u64)> = records
         .iter()
         .enumerate()
         .filter_map(|(i, r)| r.phash.map(|h| (i, h)))
         .collect();
 
+    let mut edges: Vec<(u32, usize, usize)> = Vec::new();
     for i in 0..with_phash.len() {
         for j in (i + 1)..with_phash.len() {
             let (ia, ha) = with_phash[i];
             let (ib, hb) = with_phash[j];
-            let dist = hamming(ha, hb);
-            if dist <= hamming_threshold {
-                if confirm_dhash {
-                    if let (Some(da), Some(db)) = (records[ia].dhash, records[ib].dhash) {
-                        // dHash is more sensitive than pHash to clipped shadows
-                        // and highlights. Keep it as a confirmation signal, but
-                        // allow a small exposure tolerance after pHash matched.
-                        if hamming(da, db) > hamming_threshold + 4 {
-                            continue;
-                        }
-                    }
-                }
-                uf.union(ia, ib);
+            if pair_is_near(records, ia, ib, hamming_threshold, confirm_dhash) {
+                edges.push((hamming(ha, hb), ia, ib));
             }
+        }
+    }
+    edges.sort_unstable_by_key(|(dist, ia, ib)| (*dist, *ia, *ib));
+
+    for (_, ia, ib) in edges {
+        // Complete-linkage: merge only when every member of both clusters
+        // is within the threshold. Single-linkage union-find chained
+        // A~B and B~C into {A,B,C} even when A and C were different
+        // frames (client run e2159946: diameter 15 at threshold 7).
+        if clusters_within_threshold(
+            &mut uf,
+            records,
+            n,
+            ia,
+            ib,
+            hamming_threshold,
+            confirm_dhash,
+        ) {
+            uf.union(ia, ib);
         }
     }
 
@@ -219,6 +234,53 @@ pub fn cluster_duplicates(
         groups.entry(uf.find(i)).or_default().push(i);
     }
     groups.into_values().filter(|g| g.len() >= 2).collect()
+}
+
+fn pair_is_near(
+    records: &[ImageRecord],
+    ia: usize,
+    ib: usize,
+    hamming_threshold: u32,
+    confirm_dhash: bool,
+) -> bool {
+    let (Some(ha), Some(hb)) = (records[ia].phash, records[ib].phash) else {
+        return false;
+    };
+    if hamming(ha, hb) > hamming_threshold {
+        return false;
+    }
+    if confirm_dhash {
+        if let (Some(da), Some(db)) = (records[ia].dhash, records[ib].dhash) {
+            // dHash is more sensitive than pHash to clipped shadows and
+            // highlights. Keep it as a confirmation signal, but allow a
+            // small exposure tolerance after pHash matched.
+            if hamming(da, db) > hamming_threshold + 4 {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn clusters_within_threshold(
+    uf: &mut UnionFind,
+    records: &[ImageRecord],
+    n: usize,
+    ia: usize,
+    ib: usize,
+    hamming_threshold: u32,
+    confirm_dhash: bool,
+) -> bool {
+    if uf.find(ia) == uf.find(ib) {
+        return true;
+    }
+    let a_members = uf.members_of(n, ia);
+    let b_members = uf.members_of(n, ib);
+    a_members.iter().all(|&a| {
+        b_members
+            .iter()
+            .all(|&b| pair_is_near(records, a, b, hamming_threshold, confirm_dhash))
+    })
 }
 
 #[cfg(test)]
@@ -282,5 +344,98 @@ mod tests {
         let groups = cluster_duplicates(&records, 3, false);
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].len(), 2);
+    }
+
+    fn hashed(name: &str, blake: &str, phash: u64) -> ImageRecord {
+        ImageRecord {
+            path: PathBuf::from(name),
+            blake3: blake.into(),
+            phash: Some(phash),
+            dhash: None,
+            preview_w: 10,
+            preview_h: 10,
+            size: 1,
+            is_raw_or_dng: true,
+        }
+    }
+
+    fn sorted_groups(records: &[ImageRecord], threshold: u32) -> Vec<Vec<String>> {
+        let mut groups: Vec<Vec<String>> = cluster_duplicates(records, threshold, false)
+            .into_iter()
+            .map(|g| {
+                let mut names: Vec<String> = g
+                    .into_iter()
+                    .map(|i| records[i].path.display().to_string())
+                    .collect();
+                names.sort();
+                names
+            })
+            .collect();
+        groups.sort();
+        groups
+    }
+
+    #[test]
+    fn chain_of_near_matches_does_not_merge_distant_endpoints() {
+        // A-B=5, B-C=5, A-C=10. Single-linkage would make one group of three.
+        let records = vec![
+            hashed("a.arw", "a", 0),
+            hashed("b.arw", "b", 0b1_1111),
+            hashed("c.arw", "c", 0b1_1111 | (0b1_1111 << 5)),
+        ];
+        assert_eq!(
+            hamming(records[0].phash.unwrap(), records[1].phash.unwrap()),
+            5
+        );
+        assert_eq!(
+            hamming(records[1].phash.unwrap(), records[2].phash.unwrap()),
+            5
+        );
+        assert_eq!(
+            hamming(records[0].phash.unwrap(), records[2].phash.unwrap()),
+            10
+        );
+        let groups = sorted_groups(&records, 7);
+        assert_eq!(groups.len(), 1);
+        assert!(
+            groups[0] == ["a.arw", "b.arw"] || groups[0] == ["b.arw", "c.arw"],
+            "expected a tight pair, got {groups:?}"
+        );
+    }
+
+    #[test]
+    fn mutual_near_matches_still_form_one_group() {
+        let records = vec![
+            hashed("a.arw", "a", 0),
+            hashed("b.arw", "b", 0b111),
+            hashed("c.arw", "c", 0b1_1000),
+        ];
+        assert_eq!(hamming(0, 0b111), 3);
+        assert_eq!(hamming(0, 0b1_1000), 2);
+        assert_eq!(hamming(0b111, 0b1_1000), 5);
+        let groups = sorted_groups(&records, 7);
+        assert_eq!(groups, vec![vec!["a.arw", "b.arw", "c.arw"]]);
+    }
+
+    #[test]
+    fn client_burst_does_not_absorb_the_sharper_different_frame() {
+        // pHashes from run e2159946 group 0. Balanced threshold 7 used to
+        // chain _ANI7997 onto the 7998-8000 burst (diameter 10) so the
+        // sharper unrelated frame won.
+        let records = vec![
+            hashed("_ANI7997.ARW", "7997", 0x4402_8d16_73e9_06f1),
+            hashed("_ANI7998.ARW", "7998", 0x4400_8d16_13c9_02fd),
+            hashed("_ANI7999.ARW", "7999", 0x4000_4d16_13c9_02fd),
+            hashed("_ANI8000.ARW", "8000", 0x0400_0d16_13e9_027d),
+        ];
+        let groups = sorted_groups(&records, 7);
+        assert_eq!(
+            groups,
+            vec![vec![
+                "_ANI7998.ARW".to_string(),
+                "_ANI7999.ARW".to_string(),
+                "_ANI8000.ARW".to_string()
+            ]]
+        );
     }
 }

@@ -196,11 +196,53 @@ fn sample_variant_group_keeps_the_sharp_well_exposed_original() {
 
     assert_eq!(result.scanned, 3);
     assert_eq!(result.duplicate_groups, 1);
+    // Strict complete-linkage keeps the dark frame unique (too far from the
+    // sharp original at Hamming 3) instead of discarding it as a duplicate.
+    assert_eq!(result.kept_good, 2);
+    assert_eq!(result.rejected, 1);
+    assert!(
+        dir.path().join(GOOD_DIR).join("sharp.png").exists(),
+        "the unmodified sharp, well-exposed portrait should be kept"
+    );
+    assert!(
+        dir.path().join(REJECTED_DIR).join("blurred.png").exists(),
+        "the blurred variant should still lose to the sharp original"
+    );
+}
+
+#[test]
+fn default_medium_balanced_still_groups_true_exposure_and_blur_variants() {
+    let source =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../example-images/sample8.png");
+    let original = image::open(source).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+
+    original.save(dir.path().join("sharp.png")).unwrap();
+    original
+        .blur(7.0)
+        .save(dir.path().join("blurred.png"))
+        .unwrap();
+    original
+        .brighten(-55)
+        .save(dir.path().join("dark.png"))
+        .unwrap();
+
+    let settings = AppSettings {
+        file_action: FileAction::Copy,
+        scene_mode: SceneMode::Portrait,
+        perf_profile: crate::core::settings::PerfProfile::Medium,
+        duplicate_strength: crate::core::settings::DuplicateStrength::Balanced,
+        ..AppSettings::default()
+    };
+    let result = run_pipeline(dir.path(), &settings);
+
+    assert_eq!(result.scanned, 3);
+    assert_eq!(result.duplicate_groups, 1);
     assert_eq!(result.kept_good, 1);
     assert_eq!(result.rejected, 2);
     assert!(
         dir.path().join(GOOD_DIR).join("sharp.png").exists(),
-        "the unmodified sharp, well-exposed portrait should win"
+        "the unmodified sharp, well-exposed portrait should win under default Medium/Balanced"
     );
 }
 

@@ -76,7 +76,10 @@ impl PerfProfile {
     }
 
     pub fn confirm_near_dupes(self) -> bool {
-        matches!(self, Self::High)
+        // dHash is cheap next to preview decode. Skip it only on Low so
+        // default Medium runs still confirm pHash matches instead of chaining
+        // similar-but-different frames into one group.
+        !matches!(self, Self::Low)
     }
 }
 
@@ -265,6 +268,9 @@ mod tests {
         assert!(settings.subject_blur);
         assert!(!settings.noise_reduction);
         assert_eq!(settings.ollama_model, "");
+        assert!(PerfProfile::Medium.confirm_near_dupes());
+        assert!(PerfProfile::High.confirm_near_dupes());
+        assert!(!PerfProfile::Low.confirm_near_dupes());
     }
 
     #[test]
